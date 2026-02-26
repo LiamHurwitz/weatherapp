@@ -12,7 +12,7 @@ local loading = nil
 local errorMsg = nil
 
 -- TODO: Find these weather cat sprites
-local catSprties = {
+local catSprites = {
     Clear = love.graphics.newImage("assets/cats/FILLHERE.png")
     Rain = love.graphics.newImage("assets/cats/FILLHERE.png")
     Snow = love.graphics.newImage("assets/cats/FILLHERE.png")
@@ -63,5 +63,60 @@ function scene.load(passedTown)
 
     -- Store coroutine for reuse each frame
     scene._requestCo = co
+end
 
+function scene.update(dt)
+    if loading and scene._requestCo then
+        local ok, msg = coroutine.resume(scene._requestCo)
+        if not ok then
+            errorMsg = "Unexpected Error: " .. tostring(msg)
+            loading = false
+        end
+    end
+end
+
+function scene.draw()
+    love.graphics.setFont(font)
+
+    -- Background pastel color
+    love.graphics.clear(0.93, 0.95, 0.98)
+
+    if loading then
+        love.graphics.printf("Fetching weather for" .. town .. "...", 0, love.graphics.getHeight()/2-20, love.graphics.getWidth(), "center")
+        return
+    end
+
+    if errorMsg then
+        love.graphics.setColor(1, 0.2, 0.2)
+        love.graphics.printf(errorMsg, 0, love.graphics.getHeight()/2-20, love.graphics.getWidth(), "center")
+        return
+    end
+
+    -- At this point we should have all the Weather Data
+    local mainCondition = weatherData.weather[1].main -- e.g. "Clear"
+    local catKey = mapCondition(mainCondition)
+    local catImage = catSprites[catKey] or catSprites.Default
+
+    -- Draw the kitty centered
+    local cx = love.graphics.getWidth() / 2
+    local cy = love.graphics.getHeight() / 2 - 50
+    local scale = 0.6
+    love.graphics.draw(catImage, cx - catImage:getWidth() * scale / 2,
+                        cy - catImage:getHeight() * scale / 2
+                        0, scale, scale)
     
+    -- Back button (simple text)
+    local backText = "< Head back to menu"
+    love.graphics.setColor(0.2, 0.4, 0.8)
+    love.graphics.print(backText, 20, love.graphics.getHeight() - 30)
+end
+
+function scene.mousepressed(x, y, button)
+    if button ~= 1 then return end
+     -- Detect click on the back text area
+    if y > love.graphics.getHeight()-40 and x < 150 then
+        require("sceneManager").changeScene("scenes.menu")
+    end
+end
+
+return scene
